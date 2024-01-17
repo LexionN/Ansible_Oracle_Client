@@ -1,0 +1,79 @@
+---
+- hosts: all
+#  become: true
+  become_method: sudo
+
+  tasks:
+  - name: Ping hosts
+    ping:
+
+  - name: Get service facts
+    setup:
+
+  - name: Print all avaible facts
+    debug:
+      var: ansible_facts.os_family
+
+  - name: Run task1 if OS is Debian
+    debug:
+      msg: "Операционная система на {{ansible_facts.hostname}} Дебиан"
+    when: ansible_os_family == "Debian"
+
+  - name: Run task2 if OS is Red Hat
+    debug:  
+      msg: "Операционная система на {{ansible_facts.hostname}} Редхат"
+    when: ansible_os_family == "RedHat"
+
+
+  - name: Update and upgrade apt packages in OS Debian
+    become: true
+    apt:
+#      upgrade: yes
+      update_cache: true
+      cache_valid_time: 86400 #One day
+    when: ansible_os_family == "Debian"
+
+
+  - name: Update and upgrade apt packages in OS RedHat
+    become: true
+    yum:
+#      upgrade: yes
+      update_cache: true
+#      cache_valid_time: 86400 #One day 
+    when: ansible_os_family == "RedHat"
+
+  - name: Add i386
+    become: true
+    shell: dpkg --add-architecture i386
+    shell: mkdir -pm755 /etc/apt/keyrings
+    shell: wget -O /etc/apt/keyrings/winehq-archive.key https://dl.winehq.org/wine-builds/winehq.key
+    shell: wget -NP /etc/apt/sources.list.d/ https://dl.winehq.org/wine-builds/ubuntu/dists/kinetic/winehq-kinetic.sources
+
+  - name: Install WineHQ
+    become: true
+    apt:
+      update_cache: true
+      name: winehq-stable
+      install_recommends: true
+      name: winetricks
+      state: latest
+      name: zenity
+      state: latest
+      name: winbind
+      state: latest
+  - name: Download wine_gecko
+    ansible.builtin.get_url:
+      url: http://dl.winehq.org/wine/wine-gecko/2.47/wine_gecko-2.47-x86.msi
+      dest: ~/wine_gecko.msi
+
+  - name: Set WINEPREFIX
+    shell: WINEPREFIX=~/.wine WINEARCH=win32 winecfg
+
+  - name: Install WineGecko
+    shell: wine msiexec /i ~/wine_gecko.msi
+
+  - name: Install Microsoft Fonts
+    become: true
+    apt:
+      name: ttf-mscorefonts-installer
+      state: latest
